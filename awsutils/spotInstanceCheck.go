@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-func SpotInstanceScore(spotInstanceTypes []string) int64 {
+func SpotInstanceScore(spotInstanceTypes []string, region string) int64 {
 	val := true
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{CredentialsChainVerboseErrors: &val},
@@ -23,7 +23,6 @@ func SpotInstanceScore(spotInstanceTypes []string) int64 {
 
 	// filters for instance types and region
 	dryrun := false
-	region := "us-east-1"
 	var capacity int64 = 1
 
 	instanceTypes := arrToPointerArr(spotInstanceTypes)

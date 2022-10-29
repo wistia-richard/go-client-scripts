@@ -65,12 +65,20 @@ func main() {
 					nodeStatus = condition.Status
 				}
 			}
+			if nodeStatus != "True" {
+				continue
+			}
 
-			score := awsutils.SpotInstanceScore(config.SpotNodeTypes)
-			print(score)
+			score := awsutils.SpotInstanceScore(config.SpotNodeTypes, config.AWSRegion)
+			fmt.Printf("The Spot placement score is : %v\n", score)
+
+			if score < int64(config.Ec2SpotScoreRequired) {
+				fmt.Printf("Cancelling current run since spot placement score (%v) is lesser than expected %v\n", score, config.Ec2SpotScoreRequired)
+				break
+			}
 
 			// if score is greater than required, drain one node at a time
-			if score > int64(config.Ec2SpotScoreRequired) && nodeStatus == "True" {
+			if nodeStatus == "True" {
 				for _, taint := range apinode.Spec.Taints {
 					if taint.Key == taintValue.Key && taint.Value == taintValue.Value && taint.Effect == taintValue.Effect {
 						fmt.Print("Taint already exists")
@@ -94,6 +102,7 @@ func main() {
 
 			// Add a wait time between node drain
 			durations, _ := time.ParseDuration(config.DrainPauseDuration)
+			fmt.Printf("Pause for %v before draining more nodes", durations)
 			time.Sleep(durations)
 
 			if i == len(nodesToDrain)-1 {
@@ -111,3 +120,11 @@ func main() {
 func print(value interface{}) {
 	fmt.Println(value)
 }
+
+// pending:
+
+//Send statsd to datadog
+// Set up monitoring
+// setup ci
+// in cluster setup
+// rbac setup for the cluster.
