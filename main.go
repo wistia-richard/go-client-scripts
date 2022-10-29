@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ricdon41/go-client-test/awsutils"
+	"github.com/ricdon41/go-client-test/internals"
 	"github.com/ricdon41/go-client-test/kubeutils"
 
 	api "k8s.io/api/core/v1"
@@ -17,6 +18,9 @@ import (
 )
 
 func main() {
+
+	internals.GetJsonConfig("test_config1")
+
 	clientset := kubeutils.KubeClient()
 
 	nodeList, _ := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})

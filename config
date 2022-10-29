@@ -1,0 +1,10 @@
+{
+   "ClusterName": "queueworkers-staging-1",
+   "SpotNodeTypes": ["m5.4xlarge"],
+   "OnDemandNodeGroups": ["generic-1d-od-1"],
+   "RerunInterval": "1h",
+   "MaxConcurrentNodeDrain": 0,
+   "DrainPauseDuration": "10m",
+   "Ec2SpotScoreRequired": 10,
+   "DryRun": true
+}
