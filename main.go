@@ -22,7 +22,7 @@ func main() {
 	nodeList, _ := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
 	nodes := nodeList.Items
 
-	f, _ := os.Create("nodeData")
+	f, _ := os.Create("test_nodeData")
 	w := bufio.NewWriter(f)
 
 	// get the node names and ready status
@@ -79,7 +79,7 @@ func main() {
 		}
 
 		// print filtered nodes data to a different file
-		f, _ = os.Create("filteredNodesData")
+		f, _ = os.Create("test_filteredNodesData")
 		w = bufio.NewWriter(f)
 		jsonblob, err := json.MarshalIndent(nodesToDrain, "", "   ")
 
