@@ -1,12 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"log"
-	"os"
 	"time"
 
 	"github.com/ricdon41/go-client-test/awsutils"
@@ -19,39 +15,12 @@ import (
 
 func main() {
 
-	internals.GetJsonConfig("test_config1")
+	config := internals.GetJsonConfig("test_config1")
 
 	clientset := kubeutils.KubeClient()
 
-	nodeList, _ := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
-	nodes := nodeList.Items
-
-	f, _ := os.Create("test_nodeData")
-	w := bufio.NewWriter(f)
-
-	// get the node names and ready status
-	for _, node := range nodes {
-		print(node.Name)
-		for _, condition := range node.Status.Conditions {
-			if condition.Type == "Ready" {
-				print(condition.Status)
-			}
-		}
-
-		// example of spec
-		jsonblob, err := json.MarshalIndent(node, "", "   ")
-		n4, err := w.WriteString(string(jsonblob))
-		_, _ = w.WriteString("\n")
-		print(err)
-		fmt.Printf("wrote %d bytes\n", n4)
-		w.Flush()
-	}
-
-	score := awsutils.SpotInstanceScore()
-	print(score)
-
 	// filter nodes using label selector
-	nodegroups := []string{"generic-1d-od-1"}
+	nodegroups := config.OnDemandNodeGroups
 	nodesToDrain := []api.Node{}
 	for {
 
@@ -66,44 +35,42 @@ func main() {
 
 			// get the node names and ready status
 			for _, node := range nodesFiltered {
+				fmt.Printf("List of filtered on demand instance contain one of the labels in %v:\n", config.OnDemandNodeGroups)
 				print(node.Name)
 				for _, condition := range node.Status.Conditions {
-					if condition.Type == "Ready" {
-						print(condition.Status)
+					if condition.Type == "Ready" && condition.Status == "True" {
+						// append to the slice
+						nodesToDrain = append(nodesToDrain, node)
 					}
 				}
-
-				// append to the slice
-				nodesToDrain = append(nodesToDrain, node)
 			}
 		}
 
 		if len(nodesToDrain) == 0 {
-			log.Fatal("no nodes found")
+			fmt.Println("No matching nodes found")
 		}
-
-		// print filtered nodes data to a different file
-		f, _ = os.Create("test_filteredNodesData")
-		w = bufio.NewWriter(f)
-		jsonblob, err := json.MarshalIndent(nodesToDrain, "", "   ")
-
-		n4, err := w.WriteString(string(jsonblob))
-		_, _ = w.WriteString("\n")
-		print(err)
-		fmt.Printf("wrote %d bytes\n", n4)
-		w.Flush()
 
 		taintValue := api.Taint{Key: "key1", Value: "value1", Effect: "NoExecute"}
 		taintexists := false
+		var nodeStatus api.ConditionStatus
 
-		for _, nodeToDrain := range nodesToDrain {
+		for i, nodeToDrain := range nodesToDrain {
 
 			// get a node from nodesToDrain using the name
 			apinode, _ := clientset.CoreV1().Nodes().Get(context.TODO(), nodeToDrain.Name, v1.GetOptions{})
 			print(apinode.Spec)
 
-			// if score is greater than 7, drain one node at a time
-			if score > 7 {
+			for _, condition := range apinode.Status.Conditions {
+				if condition.Type == "Ready" {
+					nodeStatus = condition.Status
+				}
+			}
+
+			score := awsutils.SpotInstanceScore(config.SpotNodeTypes)
+			print(score)
+
+			// if score is greater than required, drain one node at a time
+			if score > int64(config.Ec2SpotScoreRequired) && nodeStatus == "True" {
 				for _, taint := range apinode.Spec.Taints {
 					if taint.Key == taintValue.Key && taint.Value == taintValue.Value && taint.Effect == taintValue.Effect {
 						fmt.Print("Taint already exists")
@@ -116,7 +83,6 @@ func main() {
 					apinode.Spec.Taints = append(apinode.Spec.Taints, taintValue)
 
 					// do  a dry run
-
 					apinodeUpdated, err := clientset.CoreV1().Nodes().Update(context.TODO(), apinode, v1.UpdateOptions{DryRun: []string{"All"}, FieldManager: "", FieldValidation: "strict"})
 					print(apinodeUpdated.Spec)
 					if err != nil {
@@ -126,18 +92,20 @@ func main() {
 				}
 			}
 
-			durations, _ := time.ParseDuration("10s")
-
 			// Add a wait time between node drain
+			durations, _ := time.ParseDuration(config.DrainPauseDuration)
 			time.Sleep(durations)
+
+			if i == len(nodesToDrain)-1 {
+				fmt.Println("All nodes were processed")
+			}
 		}
-
-		fmt.Println("all nodes were drained")
-		durations, _ := time.ParseDuration("1h")
-
-		// Add a wait time between node drain
+		// Add a wait time between script re-run
+		durations, _ := time.ParseDuration(config.AppRerunInterval)
+		fmt.Printf("Sleep until next rerun in %v ", durations)
 		time.Sleep(durations)
 	}
+
 }
 
 func print(value interface{}) {

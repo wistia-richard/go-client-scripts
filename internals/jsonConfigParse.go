@@ -10,6 +10,7 @@ import (
 
 type appconfig struct {
 	ClusterName            string   `json:"ClusterName"`
+	AWSRegion              string   `json:"AWSRegion"`
 	SpotNodeTypes          []string `json:"SpotNodeTypes"`
 	OnDemandNodeGroups     []string `json:"OnDemandNodeGroups"`
 	AppRerunInterval       string   `json:"RerunInterval"`
@@ -38,7 +39,7 @@ func GenerateJsonTemplate(name string) {
 	w.Flush()
 }
 
-func GetJsonConfig(name string) {
+func GetJsonConfig(name string) appconfig {
 	data, err := os.ReadFile(name)
 	checkerr(err)
 	config := appconfig{}
@@ -46,6 +47,8 @@ func GetJsonConfig(name string) {
 	checkerr(err)
 
 	fmt.Println(config)
+
+	return config
 
 }
 

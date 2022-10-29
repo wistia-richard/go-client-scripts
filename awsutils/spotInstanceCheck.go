@@ -9,29 +9,28 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-func SpotInstanceScore() int64 {
+func SpotInstanceScore(spotInstanceTypes []string) int64 {
 	val := true
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{CredentialsChainVerboseErrors: &val},
 	}))
 
-	id := StsGetCallerId(sess)
-	fmt.Println(id)
+	StsGetCallerId(sess)
+	// id := StsGetCallerId(sess)
+	// fmt.Println(id)
 
 	ec2svc := ec2.New(sess)
 
 	// filters for instance types and region
 	dryrun := false
-	m5 := "r5.8xlarge"
-	m51 := "r5.16xlarge"
-	m52 := "r5.4xlarge"
-	m53 := "c5.12xlarge"
 	region := "us-east-1"
 	var capacity int64 = 1
 
+	instanceTypes := arrToPointerArr(spotInstanceTypes)
+
 	options := ec2.GetSpotPlacementScoresInput{
 		DryRun:         &dryrun,
-		InstanceTypes:  []*string{&m5, &m51, &m52, &m53},
+		InstanceTypes:  instanceTypes,
 		RegionNames:    []*string{&region},
 		TargetCapacity: &capacity,
 	}
@@ -44,4 +43,14 @@ func SpotInstanceScore() int64 {
 	}
 
 	return (*score.SpotPlacementScores[0].Score)
+}
+
+func arrToPointerArr(values []string) []*string {
+	var pointerArr []*string
+	for _, val := range values {
+		pointerArr = append(pointerArr, &val)
+	}
+
+	return pointerArr
+
 }
